@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import './App.css';
 
-const API = 'http://localhost:3000/api';
+const API = 'https://inventrak-backend.onrender.com/api';
 
 // ==========================================
 // 1. COMPONENTE: DASHBOARD (ANÁLISIS VIVO)
