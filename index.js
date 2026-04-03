@@ -23,17 +23,18 @@ app.get('/api/categories', async (req, res) => {
     }
 });
 
-// Crear Categoría (Corregido para Railway)
+// Crear Categoría
 app.post('/api/categories', async (req, res) => {
     const { name, description } = req.body;
     if (!name) return res.status(400).json({ error: "El nombre es obligatorio" });
 
     try {
         const query = 'INSERT INTO categories (name, description) VALUES (?, ?)';
-        const [result] = await db.query(query, [name, description || null]);
-        res.status(201).json({ id: result.insertId, message: "Categoría creada" });
+        const [result] = await db.query(query, [name.trim(), description || ""]);
+        res.status(201).json({ id: result.insertId, message: "Categoría creada con éxito" });
     } catch (err) {
-        res.status(500).json({ error: "Error al crear categoría: " + err.message });
+        console.error("Error DB Categorías:", err);
+        res.status(500).json({ error: "Fallo al crear categoría. Verifique la estructura de la tabla." });
     }
 });
 
@@ -57,7 +58,7 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
-// Crear Producto (Asegura current_stock en 0 y description opcional)
+// Crear Producto
 app.post('/api/products', async (req, res) => {
     const { sku, name, description, category_id, unit_price, min_stock_level } = req.body;
     
@@ -69,14 +70,14 @@ app.post('/api/products', async (req, res) => {
         const [result] = await db.query(query, [
             sku, 
             name, 
-            description || null, 
+            description || "", 
             category_id, 
-            unit_price, 
+            unit_price || 0, 
             min_stock_level || 0
         ]);
         res.status(201).json({ id: result.insertId, message: "Producto registrado con éxito" });
     } catch (err) {
-        console.error("LOG DE ERROR:", err);
+        console.error("LOG DE ERROR PRODUCTOS:", err);
         res.status(500).json({ error: "Fallo al registrar: Verifique que el SKU sea único." });
     }
 });
@@ -87,7 +88,7 @@ app.put('/api/products/:id', async (req, res) => {
     const { name, description, category_id, unit_price, min_stock_level } = req.body;
     try {
         const query = `UPDATE products SET name=?, description=?, category_id=?, unit_price=?, min_stock_level=? WHERE id=?`;
-        await db.query(query, [name, description || null, category_id, unit_price, min_stock_level, id]);
+        await db.query(query, [name, description || "", category_id, unit_price, min_stock_level, id]);
         res.json({ message: "Producto actualizado" });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -106,17 +107,39 @@ app.delete('/api/products/:id', async (req, res) => {
 });
 
 // ==========================================
-// 3. MOVIMIENTOS DE STOCK
+// 3. MOVIMIENTOS DE STOCK (HISTORIAL)
 // ==========================================
 
+// Leer historial (LA RUTA QUE FALTABA)
+app.get('/api/movements', async (req, res) => {
+    try {
+        const query = `
+            SELECT m.*, p.name as product_name 
+            FROM movements m
+            JOIN products p ON m.product_id = p.id
+            ORDER BY m.created_at DESC
+        `;
+        const [rows] = await db.query(query);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: "Error al obtener historial: " + err.message });
+    }
+});
+
+// Crear Movimiento
 app.post('/api/movements', async (req, res) => {
     const { product_id, type, quantity, reason } = req.body;
     try {
         const query = 'INSERT INTO movements (product_id, type, quantity, reason) VALUES (?, ?, ?, ?)';
-        await db.query(query, [product_id, type, quantity, reason]);
-        res.json({ message: "Movimiento registrado" });
+        await db.query(query, [product_id, type, quantity, reason || ""]);
+        
+        // OPCIONAL: Podrías actualizar el stock del producto aquí mismo, 
+        // pero por ahora lo manejamos con el onRefresh de React.
+        
+        res.json({ message: "Movimiento registrado con éxito" });
     } catch (err) {
-        res.status(500).json({ error: "Error en movimiento: " + err.message });
+        console.error("Error en movimiento:", err);
+        res.status(500).json({ error: "Error al registrar el movimiento de stock." });
     }
 });
 
