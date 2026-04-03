@@ -1,23 +1,26 @@
+// Asegúrate de que esto sea lo PRIMERO en el archivo
+require('dotenv').config(); 
 const mysql = require('mysql2');
-require('dotenv').config();
+
+console.log("🔍 REVISANDO VARIABLES DE ENTORNO:");
+console.log("HOST:", process.env.MYSQLHOST);
+console.log("USER:", process.env.MYSQLUSER);
 
 const pool = mysql.createPool({
-    host: process.env.MYSQLHOST,
-    user: process.env.MYSQLUSER,
-    password: process.env.MYSQLPASSWORD,
-    database: process.env.MYSQLDATABASE,
-    port: Number(process.env.MYSQLPORT) || 3306, // El Number() evita errores de formato
+    host: process.env.MYSQLHOST || 'autorack.proxy.rlwy.net', // Si falla el env, usa este por defecto
+    user: process.env.MYSQLUSER || 'root',
+    password: process.env.MYSQLPASSWORD || 'jrylRmUnZEnjvBZkyQrQBPhYwcdvkuqC',
+    database: process.env.MYSQLDATABASE || 'railway',
+    port: parseInt(process.env.MYSQLPORT) || 53116,
     waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+    connectionLimit: 10
 });
 
-// Esto nos dirá en los logs de Render si funcionó
 pool.getConnection((err, connection) => {
     if (err) {
-        console.error('❌ Error de conexión:', err.message);
+        console.error('❌ ERROR FINAL:', err.message);
     } else {
-        console.log('✅ Conexión exitosa a Railway desde la nube');
+        console.log('✅ ¡CONECTADO A RAILWAY CON ÉXITO!');
         connection.release();
     }
 });

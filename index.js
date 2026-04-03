@@ -121,7 +121,7 @@ app.post('/api/movements', async (req, res) => {
 });
 
 // --- INICIO DEL SERVIDOR ---
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor InvenTrak corriendo en puerto ${PORT}`);
 });
