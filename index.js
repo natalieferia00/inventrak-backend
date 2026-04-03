@@ -23,37 +23,17 @@ app.get('/api/categories', async (req, res) => {
     }
 });
 
-// Crear
+// Crear Categoría (Corregido para Railway)
 app.post('/api/categories', async (req, res) => {
     const { name, description } = req.body;
+    if (!name) return res.status(400).json({ error: "El nombre es obligatorio" });
+
     try {
-        const [result] = await db.query('INSERT INTO categories (name, description) VALUES (?, ?)', [name, description]);
+        const query = 'INSERT INTO categories (name, description) VALUES (?, ?)';
+        const [result] = await db.query(query, [name, description || null]);
         res.status(201).json({ id: result.insertId, message: "Categoría creada" });
     } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Actualizar
-app.put('/api/categories/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, description } = req.body;
-    try {
-        await db.query('UPDATE categories SET name = ?, description = ? WHERE id = ?', [name, description, id]);
-        res.json({ message: "Categoría actualizada" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Eliminar
-app.delete('/api/categories/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        await db.query('DELETE FROM categories WHERE id = ?', [id]);
-        res.json({ message: "Categoría eliminada" });
-    } catch (err) {
-        res.status(500).json({ error: "No se puede eliminar: existen productos vinculados." });
+        res.status(500).json({ error: "Error al crear categoría: " + err.message });
     }
 });
 
@@ -61,7 +41,7 @@ app.delete('/api/categories/:id', async (req, res) => {
 // 2. CRUD DE PRODUCTOS
 // ==========================================
 
-// Leer todos (Corregido: Sin columnas inexistentes como last_updated)
+// Leer todos (Incluye el nombre de la categoría)
 app.get('/api/products', async (req, res) => {
     try {
         const query = `
@@ -77,82 +57,71 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
-// Crear
+// Crear Producto (Asegura current_stock en 0 y description opcional)
 app.post('/api/products', async (req, res) => {
     const { sku, name, description, category_id, unit_price, min_stock_level } = req.body;
+    
     try {
-        const query = `INSERT INTO products (sku, name, description, category_id, unit_price, min_stock_level) VALUES (?, ?, ?, ?, ?, ?)`;
-        const [result] = await db.query(query, [sku, name, description, category_id, unit_price, min_stock_level]);
-        res.status(201).json({ id: result.insertId, message: "Producto registrado" });
+        const query = `
+            INSERT INTO products (sku, name, description, category_id, unit_price, current_stock, min_stock_level) 
+            VALUES (?, ?, ?, ?, ?, 0, ?)
+        `;
+        const [result] = await db.query(query, [
+            sku, 
+            name, 
+            description || null, 
+            category_id, 
+            unit_price, 
+            min_stock_level || 0
+        ]);
+        res.status(201).json({ id: result.insertId, message: "Producto registrado con éxito" });
     } catch (err) {
-        res.status(500).json({ error: "Error: El SKU debe ser único o faltan datos obligatorios." });
+        console.error("LOG DE ERROR:", err);
+        res.status(500).json({ error: "Fallo al registrar: Verifique que el SKU sea único." });
     }
 });
 
-// Actualizar
+// Actualizar Producto
 app.put('/api/products/:id', async (req, res) => {
     const { id } = req.params;
     const { name, description, category_id, unit_price, min_stock_level } = req.body;
     try {
         const query = `UPDATE products SET name=?, description=?, category_id=?, unit_price=?, min_stock_level=? WHERE id=?`;
-        await db.query(query, [name, description, category_id, unit_price, min_stock_level, id]);
+        await db.query(query, [name, description || null, category_id, unit_price, min_stock_level, id]);
         res.json({ message: "Producto actualizado" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Eliminar
+// Eliminar Producto
 app.delete('/api/products/:id', async (req, res) => {
     const { id } = req.params;
     try {
         await db.query('DELETE FROM products WHERE id = ?', [id]);
         res.json({ message: "Producto eliminado" });
     } catch (err) {
-        res.status(500).json({ error: "No se puede eliminar: el producto tiene historial de movimientos." });
+        res.status(500).json({ error: "No se puede eliminar: tiene registros vinculados." });
     }
 });
 
 // ==========================================
-// 3. MOVIMIENTOS (Corregido: Nombre de tabla 'movements')
+// 3. MOVIMIENTOS DE STOCK
 // ==========================================
 
-// Registrar Movimiento
 app.post('/api/movements', async (req, res) => {
     const { product_id, type, quantity, reason } = req.body;
     try {
-        // Se cambió 'inventory_movements' por 'movements'
         const query = 'INSERT INTO movements (product_id, type, quantity, reason) VALUES (?, ?, ?, ?)';
         await db.query(query, [product_id, type, quantity, reason]);
-        res.json({ message: `Transacción de ${type} exitosa` });
+        res.json({ message: "Movimiento registrado" });
     } catch (err) {
-        res.status(500).json({ error: "Fallo en la transacción: " + err.message });
-    }
-});
-
-// Ver Historial
-app.get('/api/movements', async (req, res) => {
-    try {
-        const query = `
-            SELECT m.*, p.name as product_name 
-            FROM movements m
-            JOIN products p ON m.product_id = p.id
-            ORDER BY m.movement_date DESC
-        `;
-        const [rows] = await db.query(query);
-        res.json(rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: "Error en movimiento: " + err.message });
     }
 });
 
 // --- INICIO DEL SERVIDOR ---
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-    console.log(`
-    🚀 INVENTRAK CORE ACTIVO EN PUERTO ${PORT}
-    -----------------------------------
-    Estatus: Online y conectado a Railway
-    ===================================
-    `);
+    console.log(`🚀 Servidor InvenTrak corriendo en puerto ${PORT}`);
 });
