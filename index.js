@@ -35,6 +35,25 @@ app.post('/api/categories', async (req, res) => {
         res.status(500).json({ error: "Fallo en la base de datos." });
     }
 });
+app.delete('/api/categories/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Validar si hay productos usando esta categoría antes de borrar
+        const [products] = await db.query('SELECT id FROM products WHERE category_id = ? LIMIT 1', [id]);
+        
+        if (products.length > 0) {
+            return res.status(400).json({ 
+                error: "No se puede eliminar: La categoría está vinculada a productos existentes." 
+            });
+        }
+
+        await db.query('DELETE FROM categories WHERE id = ?', [id]);
+        res.json({ message: "Categoría eliminada con éxito" });
+    } catch (err) {
+        console.error("Error al eliminar categoría:", err);
+        res.status(500).json({ error: "Error al intentar eliminar la categoría." });
+    }
+});
 
 // ==========================================
 // 2. GESTIÓN DE PRODUCTOS
