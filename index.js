@@ -56,6 +56,41 @@ app.delete('/api/categories/:id', async (req, res) => {
 });
 
 // ==========================================
+// NUEVO: ACTUALIZAR PRODUCTO (PUT)
+// ==========================================
+app.put('/api/products/:id', async (req, res) => {
+    const { id } = req.params;
+    const { sku, name, description, category_id, unit_price, current_stock, min_stock_level } = req.body;
+
+    try {
+        const query = `
+            UPDATE products 
+            SET sku = ?, name = ?, description = ?, category_id = ?, unit_price = ?, current_stock = ?, min_stock_level = ?
+            WHERE id = ?
+        `;
+        const [result] = await db.query(query, [
+            sku, 
+            name, 
+            description || "", 
+            category_id, 
+            unit_price || 0, 
+            current_stock || 0, 
+            min_stock_level || 0, 
+            id
+        ]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Producto no encontrado." });
+        }
+
+        res.json({ message: "Producto actualizado correctamente" });
+    } catch (err) {
+        console.error("Error al actualizar producto:", err);
+        res.status(500).json({ error: "Error al actualizar: verifique que el SKU no esté duplicado." });
+    }
+});
+
+// ==========================================
 // 2. GESTIÓN DE PRODUCTOS
 // ==========================================
 
